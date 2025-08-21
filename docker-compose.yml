@@ -1,0 +1,85 @@
+version: "3.9"
+
+services:
+  ad-query:
+    build:
+      context: ./tools/
+      dockerfile: ./docker/Dockerfile
+    image: ad-query-script
+    container_name: ad-query-container
+    working_dir: /app
+
+    environment:
+      - AD_USERNAME=${AD_USERNAME}
+      - AD_PASSWORD=${AD_PASSWORD}
+      - AD_DOMAIN=${AD_DOMAIN}     # Example: test.local
+      - AD_SERVER=${AD_SERVER}     # Example: 10.10.12.1 (AD DC / DNS)
+      - AD_NETBIOS=${AD_NETBIOS}
+
+    volumes:
+      - output_data:/app/output
+
+    dns:
+      - ${AD_SERVER}
+      - 1.1.1.1
+      - 8.8.8.8
+
+    # You can enable ICMP if you want; we are performing TCP port checks, so it's not mandatory.
+    cap_add:
+      - NET_RAW
+
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z -w 2 ${AD_SERVER} 389 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+    command: >
+      python /app/query.py
+      --TargetUser clarinox_common
+      --Domain clarinox.local
+      --OUs "OU=MelbourneClients,DC=clarinox,DC=local"
+          "OU=IzmirClients,DC=clarinox,DC=local"
+      --ExcludeComputers KURTULUS IBRAHIM-NB QNAPTR TRISH2025 CLX-QNAP4
+      --TimeoutSeconds 2
+
+    networks:
+      - ad-network
+
+
+## csv show web
+  csv-web:
+    build:
+      context: ./tools/
+      dockerfile: ./docker/ruby.Dockerfile
+    container_name: csv-web
+    ports:
+      - "8080:8080"
+    volumes:
+      - output_data:/app/output:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+## scheduler
+  ad-query-scheduler:
+    image: docker:27-cli
+    container_name: ad-query-scheduler
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/work
+    working_dir: /work
+    entrypoint: [
+      "sh","-c",
+      "while true; do docker compose -f /work/docker-compose.yml -p ad_active_rdp_session --project-directory /work run --rm ad-query; sleep 300; done"
+    ]
+
+volumes:
+  output_data:
+    name: ad_active_rdp_session_output
+
+networks:
+  ad-network:
+    driver: bridge
