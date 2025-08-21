@@ -1,0 +1,8 @@
+.output
+output
+.env
+.git
+.gitignore
+*.md
+*.log
+__pycache__
