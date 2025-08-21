@@ -36,11 +36,11 @@ services:
 
     command: >
       python /app/query.py
-      --TargetUser clarinox_common
-      --Domain clarinox.local
-      --OUs "OU=MelbourneClients,DC=clarinox,DC=local"
-          "OU=IzmirClients,DC=clarinox,DC=local"
-      --ExcludeComputers KURTULUS IBRAHIM-NB QNAPTR TRISH2025 CLX-QNAP4
+      --TargetUser test_common
+      --Domain test.local
+      --OUs "OU=MelbourneClients,DC=test,DC=local"
+          "OU=IzmirClients,DC=test,DC=local"
+      --ExcludeComputers exclude1 exclude2 exclude3
       --TimeoutSeconds 2
 
     networks:
